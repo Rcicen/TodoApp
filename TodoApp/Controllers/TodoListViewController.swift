@@ -8,9 +8,11 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController {
+class TodoListViewController: SwipeTableViewController {
 
+    @IBOutlet weak var searchBar: UISearchBar!
     var todoItems : Results<Item>?
     let realm = try! Realm() // This is a suggested way of initiating realm in realm.io so dont get confused with !
     
@@ -21,16 +23,39 @@ class TodoListViewController: UITableViewController {
     }
     
  
-    
-    
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
-        
+    
     }
 
+    override func viewWillAppear(_ animated: Bool) { //the reason we used this: NavigationController will still be nil/not assigned yet inside the viewDidLoad() however it is in viewWillAppear()
+        
+        guard let colourHex = selectedCategory?.categoryCellBackgroundColor else {fatalError("colourHex error")}
+        title = selectedCategory!.name //secilen category ismini items kısmının başlığı yapıyor.
+        updateNavBar(withHexCode: colourHex)
+        
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        updateNavBar(withHexCode: "1D9BF6")
+     
+    }
+    
+    
+    func updateNavBar(withHexCode colourHexCode: String){
+        guard let navBar = navigationController?.navigationBar else {fatalError("Navigation Controller does not exist.")} // Guard is a safety measure and lets you find where the error occurred easier
+        
+        guard let navBarColour = UIColor(hexString: colourHexCode) else{fatalError("Error Broohh")}
+        
+        navBar.barTintColor = navBarColour
+        navBar.tintColor = ContrastColorOf(navBarColour, returnFlat: true)
+        searchBar.barTintColor = navBarColour
+        
+        navBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor:ContrastColorOf(navBarColour, returnFlat: true)]
+    }
+    
+    
     
     //MARK: - Tableview Datasource Methods
     
@@ -40,10 +65,15 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
+            if let colour = UIColor(hexString: selectedCategory!.categoryCellBackgroundColor!)?.darken(byPercentage: CGFloat(indexPath.row)/CGFloat(todoItems!.count)) {
+                cell.backgroundColor = colour
+                cell.textLabel?.textColor = ContrastColorOf(colour, returnFlat: true)
+            }
+            
             cell.accessoryType = item.done ? .checkmark : .none
         }else{
             cell.textLabel?.text = "No Items Added"
@@ -90,6 +120,7 @@ class TodoListViewController: UITableViewController {
                         let newItem = Item()
                         newItem.title = textField.text!
                         newItem.dateCreated = Date()
+                        newItem.itemCellBackgroundColor = UIColor.randomFlat.hexValue()
                         currentCategory.items.append(newItem)
                     }
                 }catch{
@@ -118,7 +149,29 @@ class TodoListViewController: UITableViewController {
         tableView.reloadData()
     }
 
+    
+    //MARK: - Delete Data From Swipe
+    
+    override func updateModel(at indexPath: IndexPath) {
+        
+        if let itemForDeletion = self.todoItems?[indexPath.row]{
+            do {
+                try self.realm.write {
+                    self.realm.delete(itemForDeletion)
+                }
+            } catch {
+                print("Error deleting item \(error)")
+            }
+            
+            
+        }
+    }
+    
+    
+    
 }
+
+
 
     //MARK: - Search bar methods
 

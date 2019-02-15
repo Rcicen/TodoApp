@@ -8,9 +8,10 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
 
     let realm = try! Realm()
     var categories : Results<Category>?
@@ -19,9 +20,9 @@ class CategoryViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        
-        
         loadCategory()
+        tableView.separatorStyle = .none
+        
     }
 
    
@@ -34,9 +35,11 @@ class CategoryViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath) // This calls the cellForRowAt func. in SwipeTableVC and therefore creates a cell in that VC. then we use that cell with name "cell" in here
         
         cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added yet"
+        cell.backgroundColor = UIColor(hexString: (categories?[indexPath.row].categoryCellBackgroundColor ?? "1D9BF6"))
+        cell.textLabel?.textColor = ContrastColorOf(UIColor(hexString: (categories?[indexPath.row].categoryCellBackgroundColor)!)!, returnFlat: true)
         
         return cell
         
@@ -73,7 +76,7 @@ class CategoryViewController: UITableViewController {
             
             let newCategory = Category()
             newCategory.name = textField.text!
-          
+            newCategory.categoryCellBackgroundColor = UIColor.randomFlat.hexValue()
             
             self.save(category: newCategory)
         }
@@ -112,5 +115,22 @@ class CategoryViewController: UITableViewController {
         tableView.reloadData()
     }
     
+    //MARK: - Delete Data From Swipe
     
+    override func updateModel(at indexPath: IndexPath) {
+        
+        if let categoryForDeletion = self.categories?[indexPath.row]{
+            do {
+                try self.realm.write {
+                    self.realm.delete(categoryForDeletion)
+                }
+            } catch {
+                print("Error deleting category \(error)")
+            }
+
+
+        }
+    }
 }
+
+
